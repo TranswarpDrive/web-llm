@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+web/node_modules/
+worker/node_modules/
+
+# build outputs
+dist/
+web/dist/
+worker/dist/
+
+# caches / generated
+.vite/
+.turbo/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Cloudflare Wrangler
+.wrangler/
+worker/.wrangler/
+
+# env files
+.env
+.env.*
+!.env.example
+web/.env
+worker/.dev.vars
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
