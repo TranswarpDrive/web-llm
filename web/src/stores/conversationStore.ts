@@ -15,6 +15,7 @@ interface ConversationState {
 
   loadList: () => Promise<void>;
   selectConversation: (id: string) => Promise<void>;
+  loadMoreMessages: (convId: string) => Promise<boolean>;
   create: () => Promise<string>;
   update: (id: string, data: Partial<Conversation>) => Promise<void>;
   remove: (id: string) => Promise<void>;
@@ -66,10 +67,33 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   selectConversation: async (id: string) => {
     set({ activeId: id, streamingContent: '', streamingToolCalls: [], error: null });
     try {
-      const data = await api.getConversation(id);
+      const resp = await fetch(`/api/conversations/${id}?limit=50`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      const data = await resp.json();
       const { messages, ...conv } = data;
-      set({ active: conv, messages: messages || [] });
+      set({ active: { ...conv, _hasMore: data.has_more, _total: data.total_messages }, messages: messages || [] });
     } catch { set({ error: 'Failed to load conversation' }); }
+  },
+
+  loadMoreMessages: async (convId: string) => {
+    const { messages } = get();
+    if (messages.length === 0) return false;
+    const oldest = messages[0].created_at;
+    try {
+      const resp = await fetch(`/api/conversations/${convId}?limit=50&before=${encodeURIComponent(oldest)}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      });
+      const data = await resp.json();
+      if (data.messages?.length > 0) {
+        set(state => ({
+          messages: [...(data.messages || []), ...state.messages],
+          active: { ...(state.active as any), _hasMore: data.has_more },
+        }));
+        return true;
+      }
+      return false;
+    } catch { return false; }
   },
 
   create: async () => {
@@ -99,7 +123,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   },
 
   sendMessage: async (content, opts) => {
-    const { activeId: convId, active, messages: prevMessages } = get();
+    const { activeId: convId, active } = get();
     const providerId = opts?.providerId;
     const modelId = opts?.modelId;
     if (!providerId || !modelId) { set({ error: 'No provider or model selected' }); return; }
@@ -128,6 +152,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
           messages: [{ role: 'user', content }],
           params: opts?.params || active?.params || {},
           tools,
+          knowledge_base_ids: opts?.kbIds?.length ? opts.kbIds : undefined,
         },
         (chunkStr) => {
           try {
@@ -162,7 +187,13 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     } catch (err: any) {
       if (err?.name === 'AbortError') {
         if (fullContent) {
-          set(state => ({ messages: [...state.messages, { id: `partial-${Date.now()}`, conversation_id: convId || '', role: 'assistant', content: fullContent + '\n\n*(cancelled)*', created_at: new Date().toISOString() }] }));
+          const partialContent = fullContent + '\n\n*(stopped early)*';
+          const partialMsg: Message = { id: `partial-${Date.now()}`, conversation_id: convId || '', role: 'assistant', content: partialContent, created_at: new Date().toISOString() };
+          set(state => ({ messages: [...state.messages, partialMsg] }));
+          // Save partial to DB
+          if (convId) {
+            try { await api.addMessage(convId, { role: 'assistant', content: partialContent }); } catch {}
+          }
         }
       } else {
         set({ error: err?.error?.message || err?.message || 'Request failed' });

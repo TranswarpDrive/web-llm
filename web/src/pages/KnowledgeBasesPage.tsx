@@ -232,7 +232,19 @@ export function KnowledgeBasesPage() {
 
             {/* Documents */}
             <div>
-              <h3 className="text-sm font-medium mb-2">文档列表</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">文档列表</h3>
+                {docs.length > 0 && (
+                  <button onClick={async () => {
+                    if (!confirm('Re-index all documents? Existing chunks will be deleted.')) return;
+                    await api(`/knowledge-bases/${id}/reindex-all`, { method: 'POST' });
+                    loadDocs(id);
+                  }}
+                    className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <RefreshCw className="h-3 w-3" />重索引全部
+                  </button>
+                )}
+              </div>
               {docsLoading ? <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}</div>
                 : docs.length === 0 ? <p className="text-sm text-muted-foreground">暂无文档</p>
                   : <div className="space-y-1">

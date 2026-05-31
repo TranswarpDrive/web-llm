@@ -123,12 +123,20 @@ export function McpPage() {
                   </div>
                   <p className="text-xs text-muted-foreground mt-0.5">{s.server_url}</p>
                   <div className="mt-2 flex flex-wrap gap-1">
-                    {(s.tools || []).map(t => (
-                      <span key={t.name} className={cn('rounded px-1.5 py-0.5 text-xs',
-                        s.tools_whitelist?.includes(t.name) ? 'bg-green-100 text-green-800' : 'bg-muted text-muted-foreground')}>
-                        {t.name}
-                      </span>
-                    ))}
+                    {(s.tools || []).map(t => {
+                      const inList = s.tools_whitelist?.includes(t.name);
+                      return (
+                        <button key={t.name} onClick={async () => {
+                          const newList = inList ? s.tools_whitelist.filter(x => x !== t.name) : [...(s.tools_whitelist || []), t.name];
+                          await api(`/mcp-servers/${s.id}`, { method: 'PUT', body: JSON.stringify({ tools_whitelist: newList }) });
+                          load();
+                        }}
+                          className={cn('rounded px-1.5 py-0.5 text-xs cursor-pointer border transition-colors',
+                            inList ? 'bg-green-100 text-green-800 border-green-300' : 'bg-muted text-muted-foreground border-transparent hover:border-green-300')}>
+                          {t.name}
+                        </button>
+                      );
+                    })}
                     {(s.tools || []).length === 0 && <span className="text-xs text-muted-foreground">未发现工具 — 点击"发现"获取</span>}
                   </div>
                 </div>

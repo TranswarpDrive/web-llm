@@ -38,11 +38,13 @@ router.get('/', async (c) => {
   return c.json(data || []);
 });
 
-// Get single conversation with messages
+// Get single conversation with messages (paginated)
 router.get('/:id', async (c) => {
   const supabase = db(c);
   const userId = c.get('userId');
   const id = c.req.param('id');
+  const limit = parseInt(c.req.query('limit') || '50');
+  const before = c.req.query('before'); // cursor: message created_at timestamp
 
   const { data: conv, error } = await supabase
     .from('conversations')
@@ -55,13 +57,33 @@ router.get('/:id', async (c) => {
     return c.json({ error: { type: 'invalid_request_error', message: 'Conversation not found' } }, 404);
   }
 
-  const { data: messages } = await supabase
+  let msgQuery = supabase
     .from('messages')
     .select('*')
     .eq('conversation_id', id)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .limit(limit);
 
-  return c.json({ ...conv, messages: messages || [] });
+  if (before) {
+    msgQuery = msgQuery.lt('created_at', before);
+  }
+
+  const { data: messages } = await msgQuery;
+
+  // Reverse to ascending order for display
+  const ordered = (messages || []).reverse();
+
+  const total = await supabase
+    .from('messages')
+    .select('*', { count: 'exact', head: true })
+    .eq('conversation_id', id);
+
+  return c.json({
+    ...conv,
+    messages: ordered,
+    has_more: ordered.length >= limit,
+    total_messages: total.count || 0,
+  });
 });
 
 // Create conversation

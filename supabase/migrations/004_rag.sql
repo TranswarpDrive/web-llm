@@ -48,3 +48,37 @@ ALTER TABLE chunks ENABLE ROW LEVEL SECURITY;
 CREATE INDEX idx_chunks_doc ON chunks(document_id);
 CREATE INDEX idx_chunks_kb ON chunks(knowledge_base_id);
 CREATE INDEX idx_chunks_embedding ON chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+
+-- Vector similarity search function for RAG
+CREATE OR REPLACE FUNCTION match_chunks(
+    query_embedding TEXT,
+    match_threshold FLOAT,
+    match_count INT,
+    kb_id UUID
+)
+RETURNS TABLE (
+    id UUID,
+    content TEXT,
+    chunk_index INT,
+    document_id UUID,
+    metadata JSONB,
+    similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        c.id,
+        c.content,
+        c.chunk_index,
+        c.document_id,
+        c.metadata,
+        1 - (c.embedding <=> query_embedding::vector) AS similarity
+    FROM chunks c
+    WHERE c.knowledge_base_id = kb_id
+      AND 1 - (c.embedding <=> query_embedding::vector) > match_threshold
+    ORDER BY c.embedding <=> query_embedding::vector
+    LIMIT match_count;
+END;
+$$;

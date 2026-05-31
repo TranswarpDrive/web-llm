@@ -269,12 +269,33 @@ router.delete('/:kbId/documents/:docId', async (c) => {
 router.post('/:kbId/documents/:docId/reindex', async (c) => {
   const supabase = db(c);
   const docId = c.req.param('docId');
-
-  // Delete old chunks
   await supabase.from('chunks').delete().eq('document_id', docId);
   await supabase.from('documents').update({ status: 'pending' }).eq('id', docId);
-
   return c.json({ status: 'queued' });
+});
+
+// Re-index entire knowledge base
+router.post('/:id/reindex-all', async (c) => {
+  const supabase = db(c);
+  const kbId = c.req.param('id');
+  const userId = c.get('userId');
+
+  // Verify ownership
+  const { data: kb } = await supabase.from('knowledge_bases')
+    .select('id').eq('id', kbId).eq('user_id', userId).single();
+  if (!kb) return c.json({ error: { type: 'invalid_request_error', message: 'KB not found' } }, 404);
+
+  // Get all document IDs
+  const { data: docs } = await supabase.from('documents').select('id').eq('knowledge_base_id', kbId);
+  const docIds = (docs || []).map(d => d.id);
+
+  // Delete all chunks and reset status
+  await supabase.from('chunks').delete().in('document_id', docIds);
+  if (docIds.length > 0) {
+    await supabase.from('documents').update({ status: 'pending', chunk_count: 0 }).eq('knowledge_base_id', kbId);
+  }
+
+  return c.json({ status: 'queued', document_count: docIds.length });
 });
 
 export default router;
