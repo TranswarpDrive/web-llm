@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(node:*)",
+      "Bash(curl -s -X POST http://localhost:8787/api/auth/login -H 'Content-Type: application/json' -d '{\"\"\"\"username\"\"\"\":\"\"\"\"admin\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"ZCS]f.Gv&a+CW7tT\"\"\"\"}')",
+      "Bash(curl:*)",
+      "Bash(lsof -i :8787 -sTCP:LISTEN)"
+    ]
+  }
+}
