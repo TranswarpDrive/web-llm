@@ -11,6 +11,7 @@ import {
   Cpu,
   Database,
   FileDown,
+  Globe,
   LogOut,
   MessageSquare,
   MessageSquarePlus,
@@ -138,6 +139,7 @@ export function Sidebar({ theme, onToggleTheme, onClose }: SidebarProps) {
 
   const capabilityItems: NavItem[] = [
     { path: '/knowledge-bases', label: '知识库', icon: Database },
+    { path: '/search-providers', label: '搜索服务', icon: Globe },
     { path: '/mcp', label: 'MCP 工具', icon: Server },
   ];
 

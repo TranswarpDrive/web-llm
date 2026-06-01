@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ChatView } from '@/pages/ChatView';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProvidersPage } from '@/pages/ProvidersPage';
+import { SearchProvidersPage } from '@/pages/SearchProvidersPage';
 import { KnowledgeBasesPage } from '@/pages/KnowledgeBasesPage';
 import { McpPage } from '@/pages/McpPage';
 import { ExportPage } from '@/pages/ExportPage';
@@ -72,6 +73,7 @@ export function AppLayout() {
             <Route path="/models" element={<ProvidersPage />} />
             <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
             <Route path="/knowledge-bases/:id" element={<KnowledgeBasesPage />} />
+            <Route path="/search-providers" element={<SearchProvidersPage />} />
             <Route path="/mcp" element={<McpPage />} />
             <Route path="/export" element={<ExportPage />} />
             <Route path="/settings" element={<SettingsPage />} />

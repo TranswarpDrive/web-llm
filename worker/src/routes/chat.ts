@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { createClient } from '@supabase/supabase-js';
 import { decrypt } from '../services/encryption';
+import { resolveAndSearch, formatResultsForTool } from '../services/webSearch';
 import type { Bindings, Variables } from '../types';
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -53,21 +54,9 @@ async function executeTool(name: string, argsStr: string, env: Bindings, supabas
   if (name === 'web_search') {
     const query = args.query || '';
     if (!query) return 'Error: query parameter required for web_search';
-
-    const apiKey = env.BRAVE_API_KEY;
-    if (!apiKey) return 'Brave Search API key not configured. Set BRAVE_API_KEY.';
-
     try {
-      const res = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-        { headers: { 'Accept': 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey }, signal: AbortSignal.timeout(10000) }
-      );
-      if (!res.ok) return `Search failed: HTTP ${res.status}`;
-      const data = await res.json() as any;
-      const results = (data.web?.results || []).map((r: any, i: number) =>
-        `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.description || ''}`
-      );
-      return results.length > 0 ? results.join('\n\n') : 'No results found.';
+      const { results, note } = await resolveAndSearch(supabase, env, userId, query, args.count || 5);
+      return formatResultsForTool(results, note);
     } catch (e: any) { return `Search error: ${e.message}`; }
   }
 

@@ -27,6 +27,22 @@ export interface ProviderCapabilities {
   rerank: boolean;
 }
 
+export type SearchEngine = 'brave' | 'tavily' | 'searxng' | 'bing';
+
+export interface SearchProvider {
+  id: string;
+  user_id: string;
+  name: string;
+  engine: SearchEngine;
+  base_url?: string | null;
+  config: Record<string, unknown>;
+  is_active: boolean;
+  is_default: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ModelCapabilities {
   chat: boolean;
   vision: boolean;

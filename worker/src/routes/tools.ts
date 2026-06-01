@@ -1,4 +1,6 @@
 import { Hono } from 'hono';
+import { createClient } from '@supabase/supabase-js';
+import { resolveAndSearch } from '../services/webSearch';
 import type { Bindings, Variables } from '../types';
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -20,7 +22,7 @@ const WEB_SEARCH_TOOL = {
   },
 };
 
-// Execute web search
+// Execute web search via the user's configured search provider (default first).
 router.post('/web-search', async (c) => {
   const { query, count = 5 } = await c.req.json<{ query: string; count?: number }>();
 
@@ -28,42 +30,13 @@ router.post('/web-search', async (c) => {
     return c.json({ error: { type: 'invalid_request_error', message: 'query required' } }, 400);
   }
 
-  const apiKey = c.env.BRAVE_API_KEY;
-  if (!apiKey) {
-    return c.json({
-      results: [{ title: 'Brave Search not configured', url: '', snippet: 'Set BRAVE_API_KEY in .dev.vars' }],
-    });
-  }
-
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
   try {
-    const res = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=${Math.min(count, 10)}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip',
-          'X-Subscription-Token': apiKey,
-        },
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    if (!res.ok) {
-      return c.json({ results: [{ title: 'Search failed', url: '', snippet: `HTTP ${res.status}` }] });
-    }
-
-    const data = await res.json() as any;
-    const results = (data.web?.results || []).map((r: any) => ({
-      title: r.title,
-      url: r.url,
-      snippet: r.description || r.snippet || '',
-    }));
-
+    const { results, note } = await resolveAndSearch(supabase, c.env, c.get('userId'), query, count);
+    if (note) return c.json({ results: [{ title: '搜索服务未配置', url: '', snippet: note }] });
     return c.json({ results });
   } catch (err: any) {
-    return c.json({
-      results: [{ title: 'Search error', url: '', snippet: err.message }],
-    });
+    return c.json({ results: [{ title: 'Search error', url: '', snippet: err.message }] });
   }
 });
 
