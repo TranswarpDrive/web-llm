@@ -2,14 +2,23 @@ name = "webllm-api"
 main = "src/index.ts"
 compatibility_date = "2024-06-01"
 
+# --- Configuration ---
+# Sensitive values are NOT stored here. Set them as encrypted secrets:
+#   wrangler secret put SUPABASE_URL
+#   wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+#   wrangler secret put MASTER_ENCRYPTION_KEY
+#   wrangler secret put JWT_SECRET
+#   wrangler secret put BRAVE_API_KEY        # optional fallback for web search
+#
+# Non-sensitive vars below. CORS_ORIGINS is the comma-separated list of allowed
+# frontend origins — set it to your GitHub Pages site, e.g.
+#   "https://<user>.github.io"   (or your custom domain)
+# Either edit the value here, or override with:  wrangler secret put CORS_ORIGINS
 [vars]
-SUPABASE_URL = "https://your-project.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY = "placeholder"
-MASTER_ENCRYPTION_KEY = "placeholder"
-JWT_SECRET = "placeholder"
-BRAVE_API_KEY = ""
+CORS_ORIGINS = ""
 
-[env.production]
-routes = [
-  { pattern = "api.yourdomain.com", custom_domain = true }
-]
+# Optional: serve the API from a custom domain in production.
+# [env.production]
+# routes = [
+#   { pattern = "api.yourdomain.com", custom_domain = true }
+# ]

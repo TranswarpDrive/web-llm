@@ -1,10 +1,9 @@
 import type { Context } from 'hono';
 import type { Bindings, Variables } from '../types';
 
-const ALLOWED_ORIGINS = [
+const DEFAULT_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5173',
-  // Add production domain when deployed
 ];
 
 export async function corsMiddleware(
@@ -13,8 +12,17 @@ export async function corsMiddleware(
 ) {
   const origin = c.req.header('Origin');
 
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  // Production origins (e.g. the GitHub Pages site) come from the CORS_ORIGINS
+  // env var, comma-separated, merged with the localhost dev defaults.
+  const envOrigins = (c.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+  const allowed = [...DEFAULT_ORIGINS, ...envOrigins];
+
+  if (origin && allowed.includes(origin)) {
     c.header('Access-Control-Allow-Origin', origin);
+    c.header('Vary', 'Origin');
   }
 
   c.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

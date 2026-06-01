@@ -7,6 +7,8 @@ export type Bindings = {
   MASTER_ENCRYPTION_KEY: string;
   JWT_SECRET: string;
   BRAVE_API_KEY?: string;
+  // Comma-separated list of allowed frontend origins (e.g. the GitHub Pages site).
+  CORS_ORIGINS?: string;
 };
 
 export type Variables = {
