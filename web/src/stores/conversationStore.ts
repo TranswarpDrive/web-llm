@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/services/api';
+import { apiUrl } from '@/lib/apiBase';
 import type { Conversation, Message, ModelParams } from '@/types';
 
 interface ConversationState {
@@ -67,7 +68,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   selectConversation: async (id: string) => {
     set({ activeId: id, streamingContent: '', streamingToolCalls: [], error: null });
     try {
-      const resp = await fetch(`/api/conversations/${id}?limit=50`, {
+      const resp = await fetch(apiUrl(`/conversations/${id}?limit=50`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       const data = await resp.json();
@@ -81,7 +82,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
     if (messages.length === 0) return false;
     const oldest = messages[0].created_at;
     try {
-      const resp = await fetch(`/api/conversations/${convId}?limit=50&before=${encodeURIComponent(oldest)}`, {
+      const resp = await fetch(apiUrl(`/conversations/${convId}?limit=50&before=${encodeURIComponent(oldest)}`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       const data = await resp.json();

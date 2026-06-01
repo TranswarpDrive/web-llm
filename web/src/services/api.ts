@@ -1,6 +1,5 @@
 import type { ApiError, Provider, Model, Conversation, Message, KnowledgeBase, McpServer, SearchProvider, Assistant } from '@/types';
-
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+import { API_BASE } from '@/lib/apiBase';
 
 function getToken(): string {
   const token = localStorage.getItem('token');
@@ -11,7 +10,9 @@ function getToken(): string {
 async function handleAuthError(res: Response) {
   if (res.status === 401) {
     localStorage.removeItem('token');
-    window.location.href = '/login';
+    // Reload the SPA; AuthGuard redirects to the login route. Works regardless of
+    // hosting base path (GitHub Pages subpath) and router mode (HashRouter).
+    window.location.reload();
     throw new Error('Session expired');
   }
 }

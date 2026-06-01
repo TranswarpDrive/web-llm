@@ -5,6 +5,7 @@ import { useModelStore, type ModelFormData } from '@/stores/modelStore';
 import type { Provider, Model, ModelType, ModelCapabilities } from '@/types';
 import { Plus, Pencil, Trash2, Loader2, Save, Eye, Brain, Image, Wrench, Hash, ArrowUpDown, AlertCircle, Cpu, Bot, ChevronRight, Wifi, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { apiUrl } from '@/lib/apiBase';
 import { CheckboxCard, ConfirmAction, SelectMenu } from '@/components/FormControls';
 
 const MODEL_CAP_LABELS: { key: keyof ModelCapabilities; label: string; icon: React.ElementType }[] = [
@@ -261,7 +262,7 @@ export function ProvidersPage() {
     setPullLoading(true); setPullError(''); setPullModels([]); setSelectedPulls(new Set());
     try {
       const token = localStorage.getItem('token');
-      const res = await window.fetch(`/api/providers/${providerId}/remote-models`, {
+      const res = await window.fetch(apiUrl(`/providers/${providerId}/remote-models`), {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       });
       const data = await res.json();

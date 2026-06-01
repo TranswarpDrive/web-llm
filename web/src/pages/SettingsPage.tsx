@@ -4,6 +4,7 @@ import { Bot, Check, Cloud, Database, Download, Monitor, Moon, RefreshCw, Sparkl
 import { cn } from '@/lib/utils';
 import { SelectMenu, type SelectOption } from '@/components/FormControls';
 import { api } from '@/services/api';
+import { apiUrl } from '@/lib/apiBase';
 import type { Model, Provider } from '@/types';
 import {
   getUserPreferences,
@@ -48,7 +49,7 @@ export function SettingsPage() {
 
   async function handleExportConfig() {
     try {
-      const res = await fetch('/api/config/sync', {
+      const res = await fetch(apiUrl('/config/sync'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ action: 'export' }),
@@ -72,7 +73,7 @@ export function SettingsPage() {
       try {
         const text = await file.text();
         const config = JSON.parse(text);
-        await fetch('/api/config/sync', {
+        await fetch(apiUrl('/config/sync'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
           body: JSON.stringify({ action: 'import', config }),

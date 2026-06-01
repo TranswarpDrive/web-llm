@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Upload, RefreshCw, FileText, Search, X, Loader2, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmAction } from '@/components/FormControls';
+import { apiUrl } from '@/lib/apiBase';
 
 interface KB {
   id: string; name: string; description: string; is_active: boolean;
@@ -37,7 +38,7 @@ function formatBytes(bytes: number) {
 }
 
 function api(path: string, opts?: RequestInit) {
-  return window.fetch(`/api${path}`, {
+  return window.fetch(apiUrl(path), {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
     ...opts,
   }).then(r => r.ok ? r.json() : r.json().then(e => { throw e; }));

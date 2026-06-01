@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Loader2, Save, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ConfirmAction } from '@/components/FormControls';
+import { apiUrl } from '@/lib/apiBase';
 
 interface McpServer {
   id: string; name: string; server_url: string; tools: McpTool[]; tools_whitelist: string[]; is_active: boolean; created_at: string;
@@ -9,7 +10,7 @@ interface McpServer {
 interface McpTool { name: string; description: string; inputSchema: any; }
 
 function api(path: string, opts?: RequestInit) {
-  return window.fetch(`/api${path}`, {
+  return window.fetch(apiUrl(path), {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
     ...opts,
   }).then(r => r.ok ? r.json() : r.json().then(e => { throw e; }));

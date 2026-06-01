@@ -6,6 +6,7 @@ import {
   fetchCompleteConversation,
   type ConversationExportOptions,
 } from '@/lib/conversationExport';
+import { apiUrl } from '@/lib/apiBase';
 
 interface Conversation { id: string; title: string; last_message_at: string; created_at: string; }
 type ExportFormat = 'markdown' | 'pdf' | 'png';
@@ -19,7 +20,7 @@ const OPTION_LABELS: Record<keyof ConversationExportOptions, string> = {
 };
 
 function api(path: string, opts?: RequestInit) {
-  return window.fetch(`/api${path}`, {
+  return window.fetch(apiUrl(path), {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
     ...opts,
   }).then(r => r.ok ? r.json() : r.json().then(e => { throw e; }));

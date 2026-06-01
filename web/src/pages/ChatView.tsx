@@ -32,6 +32,7 @@ import { ConfirmAction } from '@/components/FormControls';
 import { exportConversationImage, fetchCompleteConversation } from '@/lib/conversationExport';
 import { describeImagesWithOcr, fileToDataUrl } from '@/lib/aiTasks';
 import { getUserPreferences } from '@/lib/userPreferences';
+import { apiUrl } from '@/lib/apiBase';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -122,7 +123,7 @@ export function ChatView() {
     textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 190) + 'px';
   }, [input]);
   useEffect(() => {
-    fetch('/api/knowledge-bases', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    fetch(apiUrl('/knowledge-bases'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
       .then(r => r.json()).then(d => setAvailableKbs(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 

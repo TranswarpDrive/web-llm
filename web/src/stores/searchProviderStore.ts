@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/services/api';
+import { apiUrl } from '@/lib/apiBase';
 import type { SearchProvider, SearchEngine } from '@/types';
 
 export interface SearchProviderFormData {
@@ -65,7 +66,7 @@ export const useSearchProviderStore = create<SearchProviderState>((set, get) => 
   },
 
   testConnection: async (id) => {
-    const res = await fetch(`/api/search-providers/${id}/test`, {
+    const res = await fetch(apiUrl(`/search-providers/${id}/test`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
     });

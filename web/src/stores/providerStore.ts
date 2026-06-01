@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api } from '@/services/api';
+import { apiUrl } from '@/lib/apiBase';
 import type { Provider } from '@/types';
 
 interface ProviderState {
@@ -65,7 +66,7 @@ export const useProviderStore = create<ProviderState>((set, get) => ({
   },
 
   testConnection: async (id) => {
-    const res = await fetch(`/api/providers/${id}/test`, {
+    const res = await fetch(apiUrl(`/providers/${id}/test`), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

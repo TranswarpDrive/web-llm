@@ -1,4 +1,5 @@
 import type { Citation, Conversation, Message, MessageContent, ToolCall } from '@/types';
+import { apiUrl } from '@/lib/apiBase';
 
 export interface ConversationExportOptions {
   includeSystemPrompt: boolean;
@@ -523,7 +524,7 @@ function element<K extends keyof HTMLElementTagNameMap>(
 }
 
 function defaultApiFetcher(path: string) {
-  return window.fetch(`/api${path}`, {
+  return window.fetch(apiUrl(path), {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${localStorage.getItem('token')}`,
