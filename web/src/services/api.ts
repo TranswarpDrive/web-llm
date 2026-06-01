@@ -151,6 +151,13 @@ class ApiClient {
   }
 
   // Chat streaming
+  async chatCompletion(body: Record<string, unknown>) {
+    return this.request<any>('/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({ ...body, stream: false }),
+    });
+  }
+
   async chatCompletions(
     body: Record<string, unknown>,
     onChunk: (chunk: string) => void,

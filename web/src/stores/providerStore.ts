@@ -17,12 +17,6 @@ export interface ProviderFormData {
   name: string;
   base_url: string;
   api_key: string;
-  capabilities: {
-    chat: boolean;
-    vision: boolean;
-    embedding: boolean;
-    rerank: boolean;
-  };
   is_active: boolean;
 }
 

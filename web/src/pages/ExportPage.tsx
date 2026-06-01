@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react';
-import { Download, FileText, File, Loader2 } from 'lucide-react';
+import { Download, FileText, File, Image, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  exportConversationImage,
+  fetchCompleteConversation,
+  type ConversationExportOptions,
+} from '@/lib/conversationExport';
 
 interface Conversation { id: string; title: string; last_message_at: string; created_at: string; }
+type ExportFormat = 'markdown' | 'pdf' | 'png';
+
+const OPTION_LABELS: Record<keyof ConversationExportOptions, string> = {
+  includeSystemPrompt: '系统提示',
+  includeModelInfo: '模型信息',
+  includeTimestamps: '时间戳',
+  includeToolCalls: '工具调用',
+  includeCitations: '引用来源',
+};
 
 function api(path: string, opts?: RequestInit) {
   return window.fetch(`/api${path}`, {
@@ -15,12 +29,15 @@ export function ExportPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [format, setFormat] = useState<'markdown' | 'pdf'>('markdown');
-  const [options, setOptions] = useState({
+  const [format, setFormat] = useState<ExportFormat>('markdown');
+  const [options, setOptions] = useState<ConversationExportOptions>({
     includeSystemPrompt: false, includeModelInfo: true, includeTimestamps: true,
     includeToolCalls: true, includeCitations: true,
   });
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const canSelectAll = !loading && conversations.length > 0;
+  const allSelected = canSelectAll && selected.size === conversations.length;
 
   useEffect(() => {
     api('/conversations').then(d => { setConversations(d); setLoading(false); }).catch(() => setLoading(false));
@@ -37,12 +54,13 @@ export function ExportPage() {
 
   async function handleExport() {
     setExporting(true);
+    setExportError('');
     try {
       const ids = [...selected];
       const allData: any[] = [];
 
       for (const id of ids) {
-        const data = await api(`/conversations/${id}`);
+        const data = await fetchCompleteConversation(id, api);
         allData.push(data);
       }
 
@@ -50,7 +68,7 @@ export function ExportPage() {
       if (format === 'markdown') {
         content = allData.map(conv => buildMarkdown(conv, options)).join('\n\n---\n\n');
         downloadFile(content, `export-${Date.now()}.md`, 'text/markdown');
-      } else {
+      } else if (format === 'pdf') {
         // PDF via print window
         content = allData.map(conv => buildMarkdown(conv, options)).join('\n\n---\n\n');
         const w = window.open('', '_blank')!;
@@ -63,62 +81,98 @@ export function ExportPage() {
         const md_html = markdownToHtml(content);
         body.innerHTML = md_html;
         setTimeout(() => { w.print(); w.close(); }, 500);
+      } else {
+        for (const conv of allData) {
+          await exportConversationImage(conv, options);
+        }
       }
-    } catch {}
-    setExporting(false);
+    } catch {
+      setExportError('导出失败，请稍后再试。');
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
-      <h2 className="text-2xl font-bold mb-6">导出对话</h2>
+    <div className="app-page">
+      <div className="app-page-inner-wide">
+        <header className="app-page-header">
+          <div>
+            <h2 className="app-title">导出对话</h2>
+            <p className="app-subtitle">已选择 {selected.size} / {conversations.length} 个对话</p>
+          </div>
+          <button onClick={handleExport} disabled={selected.size === 0 || exporting}
+            className="ui-primary-button">
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? '导出中...' : `导出 ${selected.size} 个`}
+          </button>
+        </header>
+        {exportError && (
+          <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {exportError}
+          </div>
+        )}
 
-      {/* Format & options */}
-      <div className="rounded-lg border p-4 mb-6 space-y-4">
-        <div className="flex gap-4">
-          {[{ v: 'markdown' as const, l: 'Markdown', i: FileText }, { v: 'pdf' as const, l: 'PDF (打印)', i: File }].map(f => (
-            <button key={f.v} onClick={() => setFormat(f.v)}
-              className={cn('flex items-center gap-2 rounded-md px-4 py-2 text-sm border', format === f.v ? 'border-primary bg-primary/10' : 'hover:bg-accent')}>
-              <f.i className="h-4 w-4" />{f.l}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(options).map(([k, v]) => (
-            <label key={k} className="flex items-center gap-1.5 text-sm">
-              <input type="checkbox" checked={v} onChange={e => setOptions(o => ({ ...o, [k]: e.target.checked }))} className="rounded" />
-              {k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase())}
-            </label>
-          ))}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <section className="ui-surface overflow-hidden">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <label className={cn('ui-check-card min-h-0 border-transparent bg-transparent px-0 py-0 hover:bg-transparent', allSelected && 'is-checked', !canSelectAll && 'is-disabled')}>
+                <input type="checkbox" checked={allSelected} disabled={!canSelectAll} onChange={toggleAll} className="ui-checkbox" />
+                全选
+              </label>
+              <span className="text-xs text-muted-foreground">{conversations.length} 个对话</span>
+            </div>
+
+            {loading ? (
+              <div className="space-y-2 p-4">{[1,2,3].map(i => <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />)}</div>
+            ) : conversations.length === 0 ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">暂无可导出的对话</div>
+            ) : (
+              <div className="divide-y">
+                {conversations.map((c, index) => (
+                  <label key={`${c.id}-${index}`} className={cn('flex cursor-pointer items-center gap-3 px-4 py-3 transition hover:bg-accent', selected.has(c.id) && 'bg-primary/10 text-primary')}>
+                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} className="ui-checkbox" />
+                    <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-sm">{c.title || '未命名对话'}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{new Date(c.last_message_at).toLocaleDateString()}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <aside className="space-y-4 lg:sticky lg:top-5 lg:self-start">
+            <section className="ui-surface p-4">
+              <h3 className="mb-3 text-sm font-medium">格式</h3>
+              <div className="grid gap-2">
+                {[
+                  { v: 'markdown' as const, l: 'Markdown', i: FileText },
+                  { v: 'pdf' as const, l: 'PDF 打印', i: File },
+                  { v: 'png' as const, l: '对话长图', i: Image },
+                ].map(f => (
+                  <button key={f.v} onClick={() => setFormat(f.v)}
+                    className={cn('flex items-center justify-between rounded-md border px-3 py-2 text-sm transition hover:bg-accent', format === f.v && 'border-primary bg-primary/10 text-primary')}>
+                    <span className="flex items-center gap-2"><f.i className="h-4 w-4" />{f.l}</span>
+                    {format === f.v && <span className="h-2 w-2 rounded-full bg-primary" />}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="ui-surface p-4">
+              <h3 className="mb-3 text-sm font-medium">内容</h3>
+              <div className="space-y-2">
+                {(Object.entries(options) as Array<[keyof ConversationExportOptions, boolean]>).map(([k, v]) => (
+                  <label key={k} className={cn('ui-check-row', v && 'is-checked')}>
+                    <span>{OPTION_LABELS[k]}</span>
+                    <input type="checkbox" checked={v} onChange={e => setOptions(o => ({ ...o, [k]: e.target.checked }))} className="ui-checkbox" />
+                  </label>
+                ))}
+              </div>
+            </section>
+          </aside>
         </div>
       </div>
-
-      {/* Conversation list */}
-      {loading ? (
-        <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}</div>
-      ) : (
-        <>
-          <label className="flex items-center gap-2 text-sm mb-2 cursor-pointer">
-            <input type="checkbox" checked={selected.size === conversations.length && conversations.length > 0} onChange={toggleAll} className="rounded" />
-            全选 ({conversations.length})
-          </label>
-          <div className="space-y-1 mb-6">
-            {conversations.map(c => (
-              <label key={c.id} className="flex items-center gap-3 rounded border p-3 cursor-pointer hover:bg-accent">
-                <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggleSelect(c.id)} className="rounded" />
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <span className="flex-1 truncate text-sm">{c.title}</span>
-                <span className="text-xs text-muted-foreground shrink-0">{new Date(c.last_message_at).toLocaleDateString()}</span>
-              </label>
-            ))}
-          </div>
-        </>
-      )}
-
-      <button onClick={handleExport} disabled={selected.size === 0 || exporting}
-        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-        {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-        {exporting ? '导出中...' : `导出 ${selected.size} 个对话`}
-      </button>
     </div>
   );
 }

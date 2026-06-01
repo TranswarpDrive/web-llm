@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Upload, RefreshCw, FileText, Search, X, Loader2, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfirmAction } from '@/components/FormControls';
 
 interface KB {
   id: string; name: string; description: string; is_active: boolean;
@@ -13,6 +14,27 @@ interface Doc {
   status: string; error_message?: string; chunk_count: number; created_at: string;
 }
 interface SearchResult { id: string; content: string; chunk_index: number; similarity: number; document_name: string; document_id: string; }
+
+const DOC_STATUS_LABELS: Record<string, string> = {
+  ready: '就绪',
+  processing: '处理中',
+  pending: '等待',
+  error: '错误',
+};
+
+const DOC_STATUS_STYLES: Record<string, string> = {
+  ready: 'bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200',
+  processing: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200',
+  pending: 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-200',
+  error: 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200',
+};
+
+function formatBytes(bytes: number) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
 
 function api(path: string, opts?: RequestInit) {
   return window.fetch(`/api${path}`, {
@@ -96,7 +118,6 @@ export function KnowledgeBasesPage() {
   }
 
   async function handleDeleteKb(kbId: string) {
-    if (!confirm('Delete this knowledge base and all documents?')) return;
     await api(`/knowledge-bases/${kbId}`, { method: 'DELETE' });
     if (id === kbId) navigate('/knowledge-bases');
     loadKBs();
@@ -143,136 +164,169 @@ export function KnowledgeBasesPage() {
     loadDocs(id);
   }
 
+  async function handleReindexAll() {
+    if (!id) return;
+    await api(`/knowledge-bases/${id}/reindex-all`, { method: 'POST' });
+    loadDocs(id);
+  }
+
   const activeKb = kbs.find(k => k.id === id);
 
   return (
-    <div className="flex h-full">
-      {/* KB List sidebar */}
-      <div className="w-64 border-r shrink-0 flex flex-col">
-        <div className="p-3 border-b flex items-center justify-between">
-          <h3 className="font-medium text-sm">知识库</h3>
-          <button onClick={() => setShowForm(true)} className="rounded p-1 hover:bg-accent"><Plus className="h-4 w-4" /></button>
+    <div className="flex h-full min-h-0 flex-col bg-background lg:flex-row">
+      <aside className="flex shrink-0 flex-col border-b bg-card lg:w-[300px] lg:border-b-0 lg:border-r">
+        <div className="flex items-center justify-between border-b p-3">
+          <h3 className="text-sm font-medium">知识库</h3>
+          <button
+            onClick={() => { setShowForm(true); setFormName(''); setFormDesc(''); }}
+            className="ui-icon-button"
+            title="新建知识库"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {loading ? <div className="p-3 space-y-2">{[1,2,3].map(i => <div key={i} className="h-10 animate-pulse rounded bg-muted" />)}</div>
-            : kbs.map(kb => (
-              <button key={kb.id} onClick={() => navigate(`/knowledge-bases/${kb.id}`)}
-                className={cn('w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-center gap-2', id === kb.id && 'bg-accent')}>
-                <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{kb.name}</div>
-                  <div className="text-xs text-muted-foreground">{kb.documents?.[0]?.count || 0} docs</div>
-                </div>
-              </button>
-            ))}
-        </div>
-      </div>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {!id ? (
-          <div className="flex h-full items-center justify-center text-muted-foreground text-sm">
-            <div className="text-center">
-              <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-30" />
-              <p>选择一个知识库或创建新的</p>
-              {showForm && (
-                <div className="mt-4 mx-auto max-w-sm text-left space-y-3 border rounded-lg p-4">
-                  <input value={formName} onChange={e => setFormName(e.target.value)} className="w-full rounded border px-3 py-2 text-sm" placeholder="名称" />
-                  <input value={formDesc} onChange={e => setFormDesc(e.target.value)} className="w-full rounded border px-3 py-2 text-sm" placeholder="描述" />
-                  <div className="flex gap-2">
-                    <button onClick={handleCreate} disabled={saving || !formName} className="rounded bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50">{saving ? '创建中...' : '创建'}</button>
-                    <button onClick={() => setShowForm(false)} className="rounded px-3 py-1.5 text-sm hover:bg-accent">取消</button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-6 max-w-3xl">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold">{activeKb?.name}</h2>
-                {activeKb?.description && <p className="text-sm text-muted-foreground">{activeKb.description}</p>}
+        {showForm && (
+          <div className="border-b p-3">
+            <div className="space-y-2">
+              <input value={formName} onChange={e => setFormName(e.target.value)} className="ui-input w-full" placeholder="名称" />
+              <input value={formDesc} onChange={e => setFormDesc(e.target.value)} className="ui-input w-full" placeholder="描述" />
+              <div className="flex gap-2">
+                <button onClick={handleCreate} disabled={saving || !formName} className="ui-primary-button px-3 py-1.5">{saving ? '创建中...' : '创建'}</button>
+                <button onClick={() => setShowForm(false)} className="ui-ghost-button px-3 py-1.5">取消</button>
               </div>
-              <button onClick={() => handleDeleteKb(id)} className="rounded p-2 hover:bg-accent text-destructive"><Trash2 className="h-4 w-4" /></button>
-            </div>
-
-            {/* Upload */}
-            <div className="flex items-center gap-3">
-              <input ref={fileRef} type="file" accept=".txt,.md,.pdf,.docx,.html,.csv" className="hidden" onChange={() => handleUpload(id)} />
-              <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="inline-flex items-center gap-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                上传文档
-              </button>
-              <span className="text-xs text-muted-foreground">支持 PDF, TXT, MD, DOCX, HTML</span>
-            </div>
-
-            {/* Search test */}
-            <div className="flex gap-2">
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                className="flex-1 rounded border px-3 py-2 text-sm" placeholder="测试检索..." />
-              <button onClick={handleSearch} disabled={searching} className="rounded border px-4 py-2 text-sm hover:bg-accent">
-                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-              </button>
-            </div>
-            {searchResults.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">检索结果</h3>
-                {searchResults.map(r => (
-                  <div key={r.id} className="rounded border p-3 text-sm">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                      <FileText className="h-3 w-3" />{r.document_name} · similarity: {r.similarity.toFixed(3)}
-                    </div>
-                    <p className="whitespace-pre-wrap text-xs">{r.content.slice(0, 300)}...</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Documents */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-medium">文档列表</h3>
-                {docs.length > 0 && (
-                  <button onClick={async () => {
-                    if (!confirm('Re-index all documents? Existing chunks will be deleted.')) return;
-                    await api(`/knowledge-bases/${id}/reindex-all`, { method: 'POST' });
-                    loadDocs(id);
-                  }}
-                    className="text-xs text-primary hover:underline flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3" />重索引全部
-                  </button>
-                )}
-              </div>
-              {docsLoading ? <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-12 animate-pulse rounded bg-muted" />)}</div>
-                : docs.length === 0 ? <p className="text-sm text-muted-foreground">暂无文档</p>
-                  : <div className="space-y-1">
-                    {docs.map(d => (
-                      <div key={d.id} className="flex items-center justify-between rounded border p-3 text-sm">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="truncate">{d.filename}</span>
-                          <span className={cn('rounded px-1.5 py-0.5 text-xs shrink-0',
-                            d.status === 'ready' ? 'bg-green-100 text-green-800' :
-                              d.status === 'processing' || d.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800')}>
-                            {d.status}
-                          </span>
-                          <span className="text-xs text-muted-foreground">{d.chunk_count} chunks</span>
-                          {d.error_message && <span className="text-xs text-red-500 truncate">{d.error_message}</span>}
-                        </div>
-                        <div className="flex gap-1 shrink-0 ml-2">
-                          <button onClick={() => handleReindex(d.id)} className="rounded p-1 hover:bg-accent" title="Re-index"><RefreshCw className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => handleDeleteDoc(d.id)} className="rounded p-1 hover:bg-accent text-destructive" title="Delete"><X className="h-3.5 w-3.5" /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>}
             </div>
           </div>
         )}
-      </div>
+
+        <div className="max-h-72 flex-1 overflow-y-auto p-2 lg:max-h-none">
+          {loading ? (
+            <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 animate-pulse rounded-md bg-muted" />)}</div>
+          ) : kbs.length === 0 ? (
+            <div className="p-6 text-center text-sm text-muted-foreground">暂无知识库</div>
+          ) : (
+            <div className="space-y-1">
+              {kbs.map(kb => (
+                <button key={kb.id} onClick={() => navigate(`/knowledge-bases/${kb.id}`)}
+                  className={cn('flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-sm transition hover:bg-accent', id === kb.id && 'bg-accent text-foreground')}>
+                  <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate">{kb.name}</div>
+                    <div className="text-xs text-muted-foreground">{kb.documents?.[0]?.count || 0} 文档</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8">
+        {!id ? (
+          <div className="flex h-full min-h-[360px] items-center justify-center text-sm text-muted-foreground">
+            <div className="text-center">
+              <BookOpen className="mx-auto mb-3 h-12 w-12 opacity-30" />
+              <p>选择一个知识库或创建新的</p>
+              <button onClick={() => setShowForm(true)} className="ui-secondary-button mt-4">
+                <Plus className="h-4 w-4" />新建知识库
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto max-w-5xl space-y-5">
+            <header className="app-page-header">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="app-title truncate">{activeKb?.name || '知识库'}</h2>
+                  <span className="ui-chip">{docs.length} 文档</span>
+                  {activeKb && !activeKb.is_active && <span className="ui-chip">已禁用</span>}
+                </div>
+                {activeKb?.description && <p className="app-subtitle">{activeKb.description}</p>}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input ref={fileRef} type="file" accept=".txt,.md,.pdf,.docx,.html,.csv" className="hidden" onChange={() => handleUpload(id)} />
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="ui-primary-button">
+                  {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  上传文档
+                </button>
+                <ConfirmAction
+                  onConfirm={() => handleDeleteKb(id)}
+                  className="ui-secondary-button text-destructive hover:text-destructive"
+                  confirmLabel="删除"
+                >
+                  <Trash2 className="h-4 w-4" />删除
+                </ConfirmAction>
+              </div>
+            </header>
+
+            <section className="ui-surface p-4">
+              <div className="flex gap-2">
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  className="ui-input flex-1" placeholder="测试检索..." />
+                <button onClick={handleSearch} disabled={searching} className="ui-secondary-button px-3">
+                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </button>
+              </div>
+              {searchResults.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h3 className="text-sm font-medium">检索结果</h3>
+                  {searchResults.map(r => (
+                    <div key={r.id} className="rounded-md border p-3 text-sm">
+                      <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
+                        <FileText className="h-3 w-3" />{r.document_name} · similarity: {r.similarity.toFixed(3)}
+                      </div>
+                      <p className="whitespace-pre-wrap text-xs leading-5 text-muted-foreground">{r.content.slice(0, 300)}...</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section className="ui-surface overflow-hidden">
+              <div className="flex items-center justify-between border-b px-4 py-3">
+                <h3 className="text-sm font-medium">文档列表</h3>
+                {docs.length > 0 && (
+                  <ConfirmAction
+                    onConfirm={handleReindexAll}
+                    className="ui-ghost-button px-2 py-1 text-xs"
+                    confirmLabel="重索引"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />重索引全部
+                  </ConfirmAction>
+                )}
+              </div>
+              {docsLoading ? (
+                <div className="space-y-2 p-4">{[1,2].map(i => <div key={i} className="h-14 animate-pulse rounded-md bg-muted" />)}</div>
+              ) : docs.length === 0 ? (
+                <div className="p-10 text-center text-sm text-muted-foreground">暂无文档</div>
+              ) : (
+                <div className="divide-y">
+                  {docs.map(d => (
+                    <div key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate">{d.filename}</span>
+                        <span className={cn('shrink-0 rounded-md px-1.5 py-0.5 text-xs', DOC_STATUS_STYLES[d.status] || DOC_STATUS_STYLES.error)}>
+                          {DOC_STATUS_LABELS[d.status] || d.status}
+                        </span>
+                        <span className="hidden text-xs text-muted-foreground sm:inline">{formatBytes(d.file_size)} · {d.chunk_count} 分块</span>
+                        {d.error_message && <span className="truncate text-xs text-red-500">{d.error_message}</span>}
+                      </div>
+                      <div className="ml-2 flex shrink-0 gap-1">
+                        <button onClick={() => handleReindex(d.id)} className="ui-icon-button" title="重索引"><RefreshCw className="h-3.5 w-3.5" /></button>
+                        <ConfirmAction onConfirm={() => handleDeleteDoc(d.id)} title="删除" confirmLabel="删除">
+                          <X className="h-3.5 w-3.5" />
+                        </ConfirmAction>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
