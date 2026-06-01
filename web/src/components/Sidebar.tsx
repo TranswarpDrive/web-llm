@@ -15,7 +15,6 @@ import {
   LogOut,
   MessageSquare,
   MessageSquarePlus,
-  Moon,
   MoreHorizontal,
   Pencil,
   RefreshCw,
@@ -23,7 +22,6 @@ import {
   Server,
   Settings,
   Sparkles,
-  Sun,
   Trash2,
   Wand2,
   X,
@@ -32,8 +30,6 @@ import { generateConversationTitle } from '@/lib/aiTasks';
 import { getUserPreferences } from '@/lib/userPreferences';
 
 interface SidebarProps {
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
   onClose: () => void;
 }
 
@@ -117,7 +113,7 @@ function NavSection({
   );
 }
 
-export function Sidebar({ theme, onToggleTheme, onClose }: SidebarProps) {
+export function Sidebar({ onClose }: SidebarProps) {
   const { conversations, loading, loadList, update, remove } = useConversationStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
@@ -379,9 +375,6 @@ export function Sidebar({ theme, onToggleTheme, onClose }: SidebarProps) {
             <p className="truncate text-sm font-medium">admin</p>
             <p className="text-[11px] text-muted-foreground">本地工作区</p>
           </div>
-          <button onClick={onToggleTheme} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" title="切换主题">
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
           <button onClick={handleLogout} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" title="退出登录">
             <LogOut className="h-4 w-4" />
           </button>

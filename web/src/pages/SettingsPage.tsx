@@ -6,6 +6,7 @@ import { SelectMenu, type SelectOption } from '@/components/FormControls';
 import { api } from '@/services/api';
 import { apiUrl } from '@/lib/apiBase';
 import type { Model, Provider } from '@/types';
+import { useThemeMode, type ThemeMode } from '@/lib/theme';
 import {
   getUserPreferences,
   resetUserPrompts,
@@ -14,14 +15,14 @@ import {
 } from '@/lib/userPreferences';
 
 const THEMES = [
-  { v: 'light', l: '浅色', icon: Sun },
-  { v: 'dark', l: '深色', icon: Moon },
-  { v: 'system', l: '系统', icon: Monitor },
+  { v: 'light' as const, l: '浅色', icon: Sun },
+  { v: 'dark' as const, l: '深色', icon: Moon },
+  { v: 'system' as const, l: '系统', icon: Monitor },
 ];
 
 export function SettingsPage() {
   const user = useAuthStore(s => s.user);
-  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'system');
+  const { themeMode, setThemeMode } = useThemeMode();
   const [preferences, setPreferences] = useState<UserPreferences>(() => getUserPreferences());
   const [models, setModels] = useState<Model[]>([]);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -36,15 +37,8 @@ export function SettingsPage() {
       .catch(() => setMsg('模型列表加载失败'));
   }, []);
 
-  function saveTheme(t: string) {
-    setTheme(t);
-    localStorage.setItem('theme', t);
-    if (t === 'dark') document.documentElement.classList.add('dark');
-    else if (t === 'light') document.documentElement.classList.remove('dark');
-    else {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
-      else document.documentElement.classList.remove('dark');
-    }
+  function saveTheme(t: ThemeMode) {
+    setThemeMode(t);
   }
 
   async function handleExportConfig() {
@@ -120,7 +114,7 @@ export function SettingsPage() {
           <div className="grid gap-2 sm:grid-cols-3">
             {THEMES.map(t => {
               const Icon = t.icon;
-              const active = theme === t.v;
+              const active = themeMode === t.v;
               return (
                 <button
                   key={t.v}

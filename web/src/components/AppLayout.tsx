@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { ThemeModeButton } from './ThemeModeButton';
 import { ChatView } from '@/pages/ChatView';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProvidersPage } from '@/pages/ProvidersPage';
@@ -15,16 +16,6 @@ import { cn } from '@/lib/utils';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const stored = localStorage.getItem('theme');
-    if (stored === 'dark' || stored === 'light') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -44,25 +35,23 @@ export function AppLayout() {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <Sidebar
-          theme={theme}
-          onToggleTheme={() => setTheme(t => (t === 'dark' ? 'light' : 'dark'))}
-          onClose={() => setSidebarOpen(false)}
-        />
+        <Sidebar onClose={() => setSidebarOpen(false)} />
       </aside>
 
       {/* Main content */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-card">
-        {/* Mobile header */}
-        <div className="flex items-center gap-2 border-b bg-card px-4 py-2 lg:hidden">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="rounded-md p-1 hover:bg-accent"
-            aria-label="打开侧边栏"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <span className="font-semibold">WebLLM</span>
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b bg-card px-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-md p-1 hover:bg-accent lg:hidden"
+              aria-label="打开侧边栏"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <ThemeModeButton />
+            <span className="font-semibold lg:hidden">WebLLM</span>
+          </div>
         </div>
 
         <div className="flex-1 overflow-auto">
