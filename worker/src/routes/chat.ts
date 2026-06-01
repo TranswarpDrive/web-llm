@@ -107,14 +107,16 @@ async function executeTool(name: string, argsStr: string, env: Bindings, supabas
 
 async function callModel(
   baseUrl: string, apiKey: string, modelId: string,
-  messages: any[], tools?: unknown[], stream = true
+  messages: any[], tools?: unknown[], stream = true,
+  customHeaders?: Record<string, string>, customBody?: Record<string, unknown>
 ): Promise<Response> {
-  const body: Record<string, unknown> = { model: modelId, messages, stream };
+  // custom_body is merged first so explicit fields (model/messages/stream/tools) win.
+  const body: Record<string, unknown> = { ...(customBody || {}), model: modelId, messages, stream };
   if (tools?.length) body.tools = tools;
 
   return fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}`, ...(customHeaders || {}) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(120000),
   });
@@ -178,6 +180,8 @@ router.post('/completions', async (c) => {
   }
 
   const apiKey = await decrypt(provider.api_key_encrypted, provider.api_key_nonce, c.env.MASTER_ENCRYPTION_KEY);
+  const customHeaders = (provider.custom_headers as Record<string, string>) || {};
+  const customBody = (provider.custom_body as Record<string, unknown>) || {};
   const hasTools = body.tools && body.tools.length > 0;
 
   // --- RAG knowledge base injection ---
@@ -290,7 +294,7 @@ router.post('/completions', async (c) => {
     // --- Tool calling loop ---
     if (hasTools) {
       // First call: non-streaming to check for tool_calls
-      const firstRes = await callModel(provider.base_url, apiKey, model.model_id, messages, body.tools, false);
+      const firstRes = await callModel(provider.base_url, apiKey, model.model_id, messages, body.tools, false, customHeaders, customBody);
 
       if (!firstRes.ok) {
         const errText = await firstRes.text().catch(() => 'Unknown');
@@ -336,7 +340,7 @@ router.post('/completions', async (c) => {
                 }
 
                 // Second call: streaming with tool results, no tools
-                const secondRes = await callModel(provider.base_url, apiKey, model.model_id, extendedMessages, undefined, true);
+                const secondRes = await callModel(provider.base_url, apiKey, model.model_id, extendedMessages, undefined, true, customHeaders, customBody);
                 if (!secondRes.ok || !secondRes.body) {
                   const errText = secondRes.ok ? '' : await secondRes.text().catch(() => '');
                   controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: { message: `Final call failed: ${errText}` } })}\n\n`));
@@ -391,7 +395,7 @@ router.post('/completions', async (c) => {
           });
         } else {
           // Non-streaming with tool results
-          const secondRes = await callModel(provider.base_url, apiKey, model.model_id, extendedMessages, undefined, false);
+          const secondRes = await callModel(provider.base_url, apiKey, model.model_id, extendedMessages, undefined, false, customHeaders, customBody);
           if (!secondRes.ok) {
             const errText = await secondRes.text().catch(() => '');
             return c.json({ error: { type: 'server_error', message: `Final call failed: ${errText}` } }, 502);
@@ -451,7 +455,7 @@ router.post('/completions', async (c) => {
     }
 
     // --- No tools: plain streaming or non-streaming ---
-    const response = await callModel(provider.base_url, apiKey, model.model_id, messages, undefined, isStream);
+    const response = await callModel(provider.base_url, apiKey, model.model_id, messages, undefined, isStream, customHeaders, customBody);
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');

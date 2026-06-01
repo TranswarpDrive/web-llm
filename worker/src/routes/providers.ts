@@ -16,6 +16,8 @@ const providerSchema = z.object({
     embedding: z.boolean().default(false),
     rerank: z.boolean().default(false),
   }).default({}),
+  custom_headers: z.record(z.string()).default({}),
+  custom_body: z.record(z.any()).default({}),
   is_active: z.boolean().default(true),
   sort_order: z.number().default(0),
 });
@@ -34,7 +36,7 @@ router.get('/', async (c) => {
 
   const { data, error } = await supabase
     .from('providers')
-    .select('id, name, base_url, capabilities, is_active, sort_order, created_at, updated_at')
+    .select('id, name, base_url, capabilities, custom_headers, custom_body, is_active, sort_order, created_at, updated_at')
     .eq('user_id', userId)
     .order('sort_order', { ascending: true });
 
@@ -68,7 +70,7 @@ router.post('/', async (c) => {
       api_key_encrypted: ciphertext,
       api_key_nonce: nonce,
     })
-    .select('id, name, base_url, capabilities, is_active, sort_order, created_at, updated_at')
+    .select('id, name, base_url, capabilities, custom_headers, custom_body, is_active, sort_order, created_at, updated_at')
     .single();
 
   if (error) {
@@ -106,7 +108,7 @@ router.put('/:id', async (c) => {
     .update(updateData)
     .eq('id', id)
     .eq('user_id', c.get('userId'))
-    .select('id, name, base_url, capabilities, is_active, sort_order, created_at, updated_at')
+    .select('id, name, base_url, capabilities, custom_headers, custom_body, is_active, sort_order, created_at, updated_at')
     .single();
 
   if (error) {
@@ -141,7 +143,7 @@ router.post('/:id/test', async (c) => {
 
   const { data: provider } = await supabase
     .from('providers')
-    .select('api_key_encrypted, api_key_nonce, base_url')
+    .select('api_key_encrypted, api_key_nonce, base_url, custom_headers')
     .eq('id', id)
     .eq('user_id', c.get('userId'))
     .single();
@@ -154,7 +156,7 @@ router.post('/:id/test', async (c) => {
 
   try {
     const res = await fetch(`${provider.base_url}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}`, ...(provider.custom_headers as Record<string, string> || {}) },
       signal: AbortSignal.timeout(10000),
     });
 
@@ -183,7 +185,7 @@ router.post('/:id/remote-models', async (c) => {
 
   const { data: provider } = await supabase
     .from('providers')
-    .select('api_key_encrypted, api_key_nonce, base_url')
+    .select('api_key_encrypted, api_key_nonce, base_url, custom_headers')
     .eq('id', id)
     .eq('user_id', c.get('userId'))
     .single();
@@ -196,7 +198,7 @@ router.post('/:id/remote-models', async (c) => {
 
   try {
     const res = await fetch(`${provider.base_url}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}`, ...(provider.custom_headers as Record<string, string> || {}) },
       signal: AbortSignal.timeout(15000),
     });
 

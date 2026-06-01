@@ -85,6 +85,11 @@ export function ProvidersPage() {
   const [provError, setProvError] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ status: string; message?: string; model_count?: number } | null>(null);
+  // Advanced: custom request headers / body
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [headerRows, setHeaderRows] = useState<Array<{ key: string; value: string }>>([]);
+  const [bodyText, setBodyText] = useState('');
+  const [bodyError, setBodyError] = useState('');
 
   // Model form state
   const [showModelForm, setShowModelForm] = useState(false);
@@ -120,11 +125,13 @@ export function ProvidersPage() {
       setEditingProv(p);
       setProvForm({ name: p.name, base_url: p.base_url, api_key: '', is_active: p.is_active });
       setProvError('');
+      setHeaderRows(Object.entries(p.custom_headers || {}).map(([key, value]) => ({ key, value: String(value) })));
+      setBodyText(p.custom_body && Object.keys(p.custom_body).length > 0 ? JSON.stringify(p.custom_body, null, 2) : '');
     }
     // reset model form when switching providers
     setShowModelForm(false); setEditingModel(null); setModelError('');
     setPullModels([]); setShowPullSection(false); setPullError('');
-    setTestResult(null);
+    setTestResult(null); setBodyError(''); setShowAdvanced(false);
   }, [selected, adding, providers]);
 
   const activeProviders = providers.filter(p => p.is_active);
@@ -142,19 +149,46 @@ export function ProvidersPage() {
     setProvForm(DEFAULT_PROVIDER_FORM);
     setProvError('');
     setShowModelForm(false);
+    setHeaderRows([]); setBodyText(''); setBodyError(''); setShowAdvanced(false); setTestResult(null);
   }
 
   // ---- Provider handlers ----
+  // Build custom_headers / custom_body from the advanced editor; throws on invalid JSON.
+  function buildCustomRequest() {
+    const custom_headers: Record<string, string> = {};
+    for (const { key, value } of headerRows) {
+      const k = key.trim();
+      if (k) custom_headers[k] = value;
+    }
+    let custom_body: Record<string, unknown> = {};
+    const trimmed = bodyText.trim();
+    if (trimmed) {
+      let parsed: unknown;
+      try { parsed = JSON.parse(trimmed); }
+      catch { throw new Error('自定义请求体不是合法的 JSON'); }
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        throw new Error('自定义请求体必须是 JSON 对象');
+      }
+      custom_body = parsed as Record<string, unknown>;
+    }
+    return { custom_headers, custom_body };
+  }
+
   async function saveProvider() {
-    setProvError(''); setProvSaving(true);
+    setProvError(''); setBodyError('');
+    let customReq: { custom_headers: Record<string, string>; custom_body: Record<string, unknown> };
+    try { customReq = buildCustomRequest(); }
+    catch (err: any) { setBodyError(err.message); setShowAdvanced(true); return; }
+
+    setProvSaving(true);
     try {
       if (editingProv && !adding) {
-        const data = { ...provForm };
+        const data: Partial<ProviderFormData> = { ...provForm, ...customReq };
         if (!data.api_key) delete (data as any).api_key;
         await updateP(editingProv.id, data);
       } else {
         if (!provForm.api_key) throw new Error('API key is required');
-        await createP(provForm);
+        await createP({ ...provForm, ...customReq });
         setAdding(false);
       }
     } catch (err: any) { setProvError(err.message); }
@@ -520,6 +554,75 @@ export function ProvidersPage() {
                 label="启用服务商"
                 className="w-full sm:w-auto"
               />
+            </div>
+
+            {/* Advanced: custom request headers / body */}
+            <div className="sm:col-span-2">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(v => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ChevronRight className={cn('h-4 w-4 transition', showAdvanced && 'rotate-90')} />
+                自定义请求
+                {(headerRows.length > 0 || bodyText.trim()) && <span className="ui-chip px-1.5 py-0.5 text-[11px]">已配置</span>}
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-3 space-y-4 rounded-md border bg-background p-3">
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="text-sm font-medium">自定义请求头</label>
+                      <button
+                        type="button"
+                        onClick={() => setHeaderRows(rows => [...rows, { key: '', value: '' }])}
+                        className="ui-ghost-button px-2 py-1 text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />添加请求头
+                      </button>
+                    </div>
+                    {headerRows.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">为该服务商的所有请求附加额外 HTTP 头（如代理鉴权）。</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {headerRows.map((row, i) => (
+                          <div key={i} className="flex gap-2">
+                            <input
+                              value={row.key}
+                              onChange={e => setHeaderRows(rows => rows.map((r, idx) => idx === i ? { ...r, key: e.target.value } : r))}
+                              className="ui-input w-full px-2 py-1.5" placeholder="Header 名称"
+                            />
+                            <input
+                              value={row.value}
+                              onChange={e => setHeaderRows(rows => rows.map((r, idx) => idx === i ? { ...r, value: e.target.value } : r))}
+                              className="ui-input w-full px-2 py-1.5" placeholder="值"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setHeaderRows(rows => rows.filter((_, idx) => idx !== i))}
+                              className="ui-icon-button shrink-0" title="移除"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium">自定义请求体 (JSON)</label>
+                    <textarea
+                      value={bodyText}
+                      onChange={e => { setBodyText(e.target.value); if (bodyError) setBodyError(''); }}
+                      className="ui-input min-h-[96px] w-full resize-y font-mono text-xs"
+                      placeholder={'{\n  "enable_thinking": true\n}'}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">合并进 /chat/completions 请求体；model、messages、stream 等字段不会被覆盖。</p>
+                    {bodyError && <p className="mt-1 text-xs text-destructive">{bodyError}</p>}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {provError && <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{provError}</div>}

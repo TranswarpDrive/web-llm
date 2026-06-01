@@ -12,6 +12,8 @@ export interface Provider {
   name: string;
   base_url: string;
   capabilities: ProviderCapabilities;
+  custom_headers?: Record<string, string>;
+  custom_body?: Record<string, unknown>;
   is_active: boolean;
   sort_order: number;
   created_at: string;

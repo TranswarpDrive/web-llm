@@ -17,6 +17,8 @@ export interface ProviderFormData {
   name: string;
   base_url: string;
   api_key: string;
+  custom_headers?: Record<string, string>;
+  custom_body?: Record<string, unknown>;
   is_active: boolean;
 }
 
