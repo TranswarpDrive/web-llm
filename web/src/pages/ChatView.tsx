@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useConversationStore } from '@/stores/conversationStore';
 import { useProviderStore } from '@/stores/providerStore';
 import { useModelStore } from '@/stores/modelStore';
+import { useAssistantStore } from '@/stores/assistantStore';
 import {
   BookOpen,
   Bot,
@@ -22,6 +23,7 @@ import {
   SlidersHorizontal,
   Square,
   Trash2,
+  Wand2,
   Wrench,
   X,
 } from 'lucide-react';
@@ -35,7 +37,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import type { ModelParams } from '@/types';
 
-type ChatMenu = 'model' | 'knowledge' | 'tools' | 'params' | null;
+type ChatMenu = 'model' | 'knowledge' | 'tools' | 'params' | 'assistant' | null;
 
 const DEFAULT_PARAMS: ModelParams = { temperature: 0.7, max_tokens: 4096, top_p: 1.0 };
 
@@ -50,6 +52,7 @@ export function ChatView() {
   } = useConversationStore();
   const { providers, fetch: fetchProviders } = useProviderStore();
   const { models, fetch: fetchModels } = useModelStore();
+  const { assistants, fetch: fetchAssistants } = useAssistantStore();
 
   const [input, setInput] = useState('');
   const [selectedProvider, setSelectedProvider] = useState('');
@@ -72,7 +75,7 @@ export function ChatView() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { fetchProviders(); fetchModels(); }, [fetchProviders, fetchModels]);
+  useEffect(() => { fetchProviders(); fetchModels(); fetchAssistants(); }, [fetchProviders, fetchModels, fetchAssistants]);
   useEffect(() => { if (id) selectConversation(id).catch(() => navigate('/')); }, [id, navigate, selectConversation]);
   useEffect(() => {
     if (!active) return;
@@ -129,6 +132,16 @@ export function ChatView() {
 
   function toggleKb(kbId: string) {
     setKbIds(prev => prev.includes(kbId) ? prev.filter(id => id !== kbId) : [...prev, kbId]);
+  }
+
+  function applyAssistant(a: typeof assistants[number]) {
+    setSystemPrompt(a.system_prompt || '');
+    if (a.params && Object.keys(a.params).length > 0) setParams({ ...DEFAULT_PARAMS, ...a.params });
+    if (a.default_model_id) {
+      const model = models.find(m => m.id === a.default_model_id && m.is_active);
+      if (model) { setSelectedProvider(model.provider_id); setSelectedModel(model.id); }
+    }
+    setActiveMenu(null);
   }
 
   async function getTools(): Promise<unknown[] | undefined> {
@@ -333,6 +346,16 @@ export function ChatView() {
           </div>
 
           <div className="relative flex items-center gap-1">
+            {assistants.length > 0 && (
+              <button
+                onClick={() => setActiveMenu(activeMenu === 'assistant' ? null : 'assistant')}
+                className={cn('flex h-9 items-center justify-center rounded-md border px-2.5 text-muted-foreground hover:bg-accent hover:text-foreground', activeMenu === 'assistant' && 'bg-accent text-foreground')}
+                title="助手"
+                aria-label="选择助手"
+              >
+                <Wand2 className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={() => setActiveMenu(activeMenu === 'model' ? null : 'model')}
               className={cn('flex h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium hover:bg-accent', activeMenu === 'model' && 'bg-accent')}
@@ -358,6 +381,32 @@ export function ChatView() {
             >
               <Camera className="h-4 w-4" />
             </button>
+
+            {activeMenu === 'assistant' && (
+              <div className="absolute right-0 top-11 z-50 w-[300px] rounded-md border bg-card p-2 shadow-xl">
+                <div className="mb-1 flex items-center justify-between px-2 py-1">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">助手</span>
+                  <button onClick={() => { setActiveMenu(null); navigate('/assistants'); }} className="text-xs text-primary hover:underline">管理</button>
+                </div>
+                <div className="max-h-72 space-y-1 overflow-y-auto">
+                  {assistants.map(a => (
+                    <button
+                      key={a.id}
+                      onClick={() => applyAssistant(a)}
+                      className="flex w-full items-start gap-2 rounded px-2 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-primary/10 text-sm">
+                        {a.emoji || <Wand2 className="h-3.5 w-3.5 text-primary" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{a.name}</span>
+                        {a.system_prompt && <span className="block truncate text-xs text-muted-foreground">{a.system_prompt}</span>}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {activeMenu === 'model' && (
               <div className="absolute right-0 top-11 z-50 w-[340px] rounded-md border bg-card p-2 shadow-xl">

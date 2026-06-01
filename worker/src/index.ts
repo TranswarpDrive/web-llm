@@ -6,6 +6,7 @@ import { verifyPassword } from './services/auth';
 import { signToken } from './services/jwt';
 import providerRoutes from './routes/providers';
 import searchProviderRoutes from './routes/searchProviders';
+import assistantRoutes from './routes/assistants';
 import modelRoutes from './routes/models';
 import chatRoutes from './routes/chat';
 import conversationRoutes from './routes/conversations';
@@ -100,6 +101,7 @@ api.use('*', async (c, next) => {
 // Phase 3: Conversations
 api.route('/providers', providerRoutes);
 api.route('/search-providers', searchProviderRoutes);
+api.route('/assistants', assistantRoutes);
 api.route('/models', modelRoutes);
 api.route('/chat', chatRoutes);
 api.route('/conversations', conversationRoutes);

@@ -1,4 +1,4 @@
-import type { ApiError, Provider, Model, Conversation, Message, KnowledgeBase, McpServer, SearchProvider } from '@/types';
+import type { ApiError, Provider, Model, Conversation, Message, KnowledgeBase, McpServer, SearchProvider, Assistant } from '@/types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -88,6 +88,23 @@ class ApiClient {
 
   async deleteSearchProvider(id: string) {
     return this.request<void>(`/search-providers/${id}`, { method: 'DELETE' });
+  }
+
+  // Assistants
+  async getAssistants() {
+    return this.request<Assistant[]>('/assistants');
+  }
+
+  async createAssistant(data: Record<string, unknown>) {
+    return this.request<Assistant>('/assistants', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateAssistant(id: string, data: Record<string, unknown>) {
+    return this.request<Assistant>(`/assistants/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteAssistant(id: string) {
+    return this.request<void>(`/assistants/${id}`, { method: 'DELETE' });
   }
 
   // Models

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { createClient } from '@supabase/supabase-js';
 import { decrypt } from '../services/encryption';
 import { resolveAndSearch, formatResultsForTool } from '../services/webSearch';
+import { renderPromptVariables } from '../services/promptVars';
 import type { Bindings, Variables } from '../types';
 
 const router = new Hono<{ Bindings: Bindings; Variables: Variables }>();
@@ -146,7 +147,9 @@ router.post('/completions', async (c) => {
       const { data: history } = await supabase.from('messages')
         .select('role, content').eq('conversation_id', conversationId).order('created_at', { ascending: true }).limit(50);
       const fullMessages: any[] = [];
-      if (conv.system_prompt) fullMessages.push({ role: 'system', content: conv.system_prompt });
+      if (conv.system_prompt) {
+        fullMessages.push({ role: 'system', content: renderPromptVariables(conv.system_prompt, { model: model.display_name }) });
+      }
       if (history) for (const msg of history) {
         let content: any = msg.content;
         try { if (typeof content === 'string' && (content.startsWith('[') || content.startsWith('{'))) content = JSON.parse(content); } catch {}

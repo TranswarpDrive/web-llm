@@ -25,6 +25,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Wand2,
   X,
 } from 'lucide-react';
 import { generateConversationTitle } from '@/lib/aiTasks';
@@ -135,6 +136,7 @@ export function Sidebar({ theme, onToggleTheme, onClose }: SidebarProps) {
   const workspaceItems: NavItem[] = [
     { path: '/providers', label: '服务商', icon: Cpu },
     { path: '/models', label: '模型', icon: Bot },
+    { path: '/assistants', label: '助手', icon: Wand2 },
   ];
 
   const capabilityItems: NavItem[] = [

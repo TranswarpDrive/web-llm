@@ -27,6 +27,20 @@ export interface ProviderCapabilities {
   rerank: boolean;
 }
 
+export interface Assistant {
+  id: string;
+  user_id: string;
+  name: string;
+  emoji: string;
+  system_prompt: string;
+  default_model_id?: string | null;
+  params: ModelParams;
+  is_default: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type SearchEngine = 'brave' | 'tavily' | 'searxng' | 'bing';
 
 export interface SearchProvider {
