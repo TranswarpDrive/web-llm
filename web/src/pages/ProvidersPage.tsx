@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useProviderStore, type ProviderFormData } from '@/stores/providerStore';
 import { useModelStore, type ModelFormData } from '@/stores/modelStore';
 import type { Provider, Model, ModelType, ModelCapabilities } from '@/types';
-import { Plus, Pencil, Trash2, Loader2, Save, Eye, Brain, Image, Wrench, Hash, ArrowUpDown, AlertCircle, Cpu, Bot, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Save, Eye, Brain, Image, Wrench, Hash, ArrowUpDown, AlertCircle, Cpu, Bot, ChevronRight, Wifi, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CheckboxCard, ConfirmAction, SelectMenu } from '@/components/FormControls';
 
@@ -71,7 +71,7 @@ export function ProvidersPage() {
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
 
-  const { providers, loading: pLoading, fetch: fetchProviders, create: createP, update: updateP, remove: removeP } = useProviderStore();
+  const { providers, loading: pLoading, fetch: fetchProviders, create: createP, update: updateP, remove: removeP, testConnection } = useProviderStore();
   const { models, loading: mLoading, fetch: fetchModels, create: createM, update: updateM, remove: removeM, batchCreate } = useModelStore();
 
   // Master-detail selection: ALL | providerId
@@ -83,6 +83,8 @@ export function ProvidersPage() {
   const [provForm, setProvForm] = useState<ProviderFormData>(DEFAULT_PROVIDER_FORM);
   const [provSaving, setProvSaving] = useState(false);
   const [provError, setProvError] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ status: string; message?: string; model_count?: number } | null>(null);
 
   // Model form state
   const [showModelForm, setShowModelForm] = useState(false);
@@ -122,6 +124,7 @@ export function ProvidersPage() {
     // reset model form when switching providers
     setShowModelForm(false); setEditingModel(null); setModelError('');
     setPullModels([]); setShowPullSection(false); setPullError('');
+    setTestResult(null);
   }, [selected, adding, providers]);
 
   const activeProviders = providers.filter(p => p.is_active);
@@ -156,6 +159,18 @@ export function ProvidersPage() {
       }
     } catch (err: any) { setProvError(err.message); }
     finally { setProvSaving(false); }
+  }
+
+  async function handleTest(id: string) {
+    setTesting(true); setTestResult(null);
+    try {
+      const result = await testConnection(id);
+      setTestResult(result);
+    } catch (err: any) {
+      setTestResult({ status: 'error', message: err?.message || '连接失败' });
+    } finally {
+      setTesting(false);
+    }
   }
 
   async function handleDeleteProvider(id: string) {
@@ -512,8 +527,26 @@ export function ProvidersPage() {
             <button onClick={saveProvider} disabled={provSaving || !canSaveProvider} className="ui-primary-button">
               <Save className="h-4 w-4" />{provSaving ? '保存中...' : (adding ? '添加' : '更新')}
             </button>
+            {!adding && selectedProvider && (
+              <button onClick={() => handleTest(selectedProvider.id)} disabled={testing} className="ui-secondary-button">
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                {testing ? '测试中...' : '测试连接'}
+              </button>
+            )}
             {adding && <button onClick={() => { setAdding(false); navigate('/providers'); }} className="ui-ghost-button">取消</button>}
           </div>
+          {testResult && (
+            <div className={cn(
+              'mt-3 flex items-center gap-1.5 rounded-md px-3 py-2 text-sm',
+              testResult.status === 'ok'
+                ? 'bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200'
+                : 'bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200'
+            )}>
+              {testResult.status === 'ok'
+                ? <><Check className="h-4 w-4" />已连接！{testResult.model_count} 个模型可用</>
+                : <><X className="h-4 w-4" />{testResult.message || '连接失败'}</>}
+            </div>
+          )}
         </section>
 
         {/* Models belonging to this provider */}
