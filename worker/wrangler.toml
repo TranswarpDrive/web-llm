@@ -15,7 +15,7 @@ compatibility_date = "2024-06-01"
 #   "https://<user>.github.io"   (or your custom domain)
 # Either edit the value here, or override with:  wrangler secret put CORS_ORIGINS
 [vars]
-CORS_ORIGINS = ""
+CORS_ORIGINS = "https://transwarpdrive.github.io"
 
 # Optional: serve the API from a custom domain in production.
 # [env.production]
