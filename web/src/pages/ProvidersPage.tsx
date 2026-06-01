@@ -516,14 +516,15 @@ export function ProvidersPage() {
 
   // ===== Detail: a single provider (settings + its models) =====
   function providerDetail() {
-    const provName = adding ? '新服务商' : (selectedProvider?.name || '服务商');
+    // No selected provider (e.g. fresh account with none yet) behaves like adding.
+    const addMode = adding || !selectedProvider;
     return (
       <div className="space-y-5">
         {/* Provider settings (inline edit) */}
         <section className="ui-surface p-4 sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h3 className="font-medium">{adding ? '添加服务商' : `编辑服务商 · ${provName}`}</h3>
-            {!adding && selectedProvider && (
+            <h3 className="font-medium">{addMode ? '添加服务商' : `编辑服务商 · ${selectedProvider?.name || ''}`}</h3>
+            {!addMode && selectedProvider && (
               <ConfirmAction onConfirm={() => handleDeleteProvider(selectedProvider.id)} title="删除服务商" confirmLabel="删除">
                 <Trash2 className="h-4 w-4" />
               </ConfirmAction>
@@ -542,10 +543,10 @@ export function ProvidersPage() {
             </div>
             <div className="sm:col-span-2">
               <label className="mb-1 block text-sm font-medium">
-                API Key {!adding && <span className="text-muted-foreground">(留空则保持不变)</span>}
+                API Key {!addMode && <span className="text-muted-foreground">(留空则保持不变)</span>}
               </label>
               <input type="password" value={provForm.api_key} onChange={e => setProvForm(f => ({ ...f, api_key: e.target.value }))}
-                className="ui-input w-full" placeholder={!adding ? '••••••••' : 'sk-...'} />
+                className="ui-input w-full" placeholder={!addMode ? '••••••••' : 'sk-...'} />
             </div>
             <div className="sm:col-span-2">
               <CheckboxCard
@@ -628,9 +629,9 @@ export function ProvidersPage() {
           {provError && <div className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{provError}</div>}
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={saveProvider} disabled={provSaving || !canSaveProvider} className="ui-primary-button">
-              <Save className="h-4 w-4" />{provSaving ? '保存中...' : (adding ? '添加' : '更新')}
+              <Save className="h-4 w-4" />{provSaving ? '保存中...' : (addMode ? '添加' : '更新')}
             </button>
-            {!adding && selectedProvider && (
+            {!addMode && selectedProvider && (
               <button onClick={() => handleTest(selectedProvider.id)} disabled={testing} className="ui-secondary-button">
                 {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
                 {testing ? '测试中...' : '测试连接'}
@@ -653,7 +654,7 @@ export function ProvidersPage() {
         </section>
 
         {/* Models belonging to this provider */}
-        {!adding && selectedProvider && (
+        {!addMode && selectedProvider && (
           <section className="ui-surface p-4 sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-2">
               <h3 className="font-medium">模型 <span className="text-sm font-normal text-muted-foreground">({detailModels.length})</span></h3>
