@@ -68,6 +68,7 @@ export function AppLayout() {
             <Route path="/" element={<HomePage />} />
             <Route path="/chat/:id" element={<ChatView />} />
             <Route path="/providers" element={<ProvidersPage />} />
+            <Route path="/providers/:id" element={<ProvidersPage />} />
             <Route path="/models" element={<ProvidersPage />} />
             <Route path="/knowledge-bases" element={<KnowledgeBasesPage />} />
             <Route path="/knowledge-bases/:id" element={<KnowledgeBasesPage />} />
