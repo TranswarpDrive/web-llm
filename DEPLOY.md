@@ -32,7 +32,13 @@ openssl rand -base64 48   # 分别用于 MASTER_ENCRYPTION_KEY 和 JWT_SECRET
 1. 在 https://supabase.com 新建 project，记下 **Project URL** 和 **service_role key**（Project Settings → API）。
 2. 建表：打开 **SQL Editor**，把仓库里的 `supabase/DEPLOY_ALL.sql` 全部粘贴执行（已按 001→008 顺序合并，含 `pgvector`/`pgcrypto` 扩展、`admin` 用户、RAG 的 `match_chunks()`）。
    - 或用 CLI：`supabase link --project-ref <ref>` 然后 `supabase db push`。
-3. 默认会建一个 `admin` 用户，密码沿用 dev 的 `ZCS]f.Gv&a+CW7tT`。**线上建议改密码**（PBKDF2，需要脚本重算 hash，可让我生成）。
+3. 为 `admin` 设置生产密码。schema 里只放了不可登录的占位 hash，必须在登录前生成自己的 PBKDF2 hash：
+
+```bash
+npm run hash-password
+```
+
+把输出的 SQL 粘贴到 Supabase SQL Editor 执行。不要把生成出来的 SQL 或密码提交到仓库。
 
 ---
 
@@ -98,7 +104,7 @@ cd worker && npm run deploy:worker
 
 ## 5. 验证
 
-1. 打开前端地址，用 `admin` 登录。
+1. 打开前端地址，用 `admin` 和你在第 1 步生成的生产密码登录。
 2. F12 → Network，确认 API 请求打到的是 Worker 域名且返回 200（不是 `<pages域名>/api`、不是 CORS 报错）。
 3. 在「服务商」里加一个模型服务商 → 点「测试连接」应显示已连接。
 4. 发一条消息验证流式输出；如需联网搜索，在「搜索服务」里加一个并设为默认。
@@ -120,4 +126,4 @@ npm run dev:worker   # localhost:8787
 npm run dev:web      # localhost:3000，/api 经 Vite 代理到 8787（无需设 VITE_API_URL）
 ```
 
-> 未配置 Supabase 时 Worker 进入 dev 模式：登录可用，数据接口返回空数组。
+> 未配置 Supabase 时 Worker 进入 dev 模式：登录可用，数据接口返回空数组。生产环境不要依赖 dev 登录信息，必须为 Supabase 里的 `admin` 生成独立密码。

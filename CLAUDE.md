@@ -24,7 +24,7 @@ npx tsc --noEmit -p worker/tsconfig.json   # Typecheck worker
 
 - **No modals** — forms use inline editing within pages, not dialogs
 - **Chinese labels** — UI uses Chinese (服务商, 模型, 知识库, 导出, 设置)
-- **Dev mode** — when `SUPABASE_URL` is unset or placeholder, worker returns empty arrays without hitting Supabase. Auth works with hardcoded `admin` / `ZCS]f.Gv&a+CW7tT`
+- **Dev mode** — when `SUPABASE_URL` is unset or placeholder, worker returns empty arrays without hitting Supabase. Production admin passwords are generated separately with `npm run hash-password`
 - **API keys** — AES-256-GCM encrypted before storing in DB. Worker decrypts on-the-fly using `MASTER_ENCRYPTION_KEY`
 - **Streaming** — SSE via `ReadableStream`, frontend parses `data: {...}` chunks
 - **Pages** — one page per feature area. `/providers` has two tabs (服务商 + 模型). `/knowledge-bases` has sidebar + main layout

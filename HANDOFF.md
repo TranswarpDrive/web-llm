@@ -25,11 +25,11 @@ npx tsc --noEmit -p web/tsconfig.json
 npx tsc --noEmit -p worker/tsconfig.json
 ```
 
-### Dev login
+### Login
 
 - Username: `admin`
-- Password: `ZCS]f.Gv&a+CW7tT`
-- Dev mode (no Supabase): login works, all API calls return empty arrays instantly
+- Production password: generate and apply with `npm run hash-password` before first login
+- Dev mode (no Supabase): login works locally, all API calls return empty arrays instantly
 
 ### Required env vars (`worker/.dev.vars`)
 

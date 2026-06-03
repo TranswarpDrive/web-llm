@@ -30,13 +30,13 @@ CREATE TRIGGER update_users_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
--- Seed admin user
--- Password is set via application-level PBKDF2 hash
+-- Seed admin user with a locked placeholder password.
+-- Before production login, run `npm run hash-password` and apply the generated SQL.
 INSERT INTO users (username, display_name, password_hash, password_salt) VALUES (
     'admin',
     'Admin',
-    'yvVyr5Zxg4XpSKCyQJa4fZaTDNb3krM/a3e6yrYMPic=',
-    'hj75wIOWF7LgaEIe+bTRRuafTTCpsavJO8KTqF90EHA='
+    'n9LwYIU5JwVT0XuehMW6uVKrQfNJAF/fb4QzMUzT5a8=',
+    'O+vbTSirLSIqsjMoKemdwmKM1k4YV3j4RDSjrpd0Vfk='
 ) ON CONFLICT (username) DO NOTHING;
 
 -- Enable Row Level Security (single-user but still best practice)

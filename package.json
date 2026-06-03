@@ -12,7 +12,14 @@
     "build:web": "npm run build --workspace=web",
     "build:worker": "npm run build --workspace=worker",
     "deploy:worker": "npm run deploy --workspace=worker",
+    "hash-password": "node scripts/hash-password.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.4.1",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.60.1"
   }
 }
